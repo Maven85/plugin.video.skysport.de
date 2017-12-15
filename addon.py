@@ -7,11 +7,10 @@ import sys
 import urlparse
 import urllib
 from HTMLParser import HTMLParser
-
-#from kodiswift import Plugin, xbmc
 import xbmc, xbmcplugin, xbmcaddon, xbmcgui
 from bs4 import BeautifulSoup
 import requests
+import json
 
 try:
     import StorageServer
@@ -107,14 +106,21 @@ def getVideoId(path):
 
 def playVideo(path):
     video_id = getVideoId(path)
-    if video_id is not None: 
+    if video_id is not None:
         li = xbmcgui.ListItem()
-        li.setMimeType('application/x-mpegURL')        
-        li.setProperty("inputstream.adaptive.manifest_type", "hls")
-        li.setProperty('inputstreamaddon', 'inputstream.adaptive')
         li.setPath(VIDEO_URL_FMT.format(video_id=video_id) + "|" + USER_AGENT)
+        
+        adaptive_addon = xbmc.executeJSONRPC('{"jsonrpc": "2.0", "id": 1, "method": "Addons.GetAddonDetails", "params": {"addonid": "inputstream.adaptive", "properties": ["enabled", "version"]}}')
+        adaptive_addon = json.loads(adaptive_addon)
+        if not 'error' in adaptive_addon.keys() and adaptive_addon['result']['addon']['enabled'] == True and versiontuple(adaptive_addon['result']['addon']['version']) > versiontuple("2.0.10"):
+            li.setMimeType('application/x-mpegURL')        
+            li.setProperty("inputstream.adaptive.manifest_type", "hls")
+            li.setProperty('inputstreamaddon', 'inputstream.adaptive')            
 
         xbmcplugin.setResolvedUrl(addon_handle, True, li)
+
+def versiontuple(v):
+    return tuple(map(str, (v.split("."))))
 
 if __name__ == '__main__':
     if 'action' in params:

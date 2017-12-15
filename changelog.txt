@@ -1,1 +1,2 @@
+0.1.1 use inputstream.adaptive if possible
 0.1.0 initial commit
