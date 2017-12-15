@@ -112,7 +112,7 @@ def playVideo(path):
         
         adaptive_addon = xbmc.executeJSONRPC('{"jsonrpc": "2.0", "id": 1, "method": "Addons.GetAddonDetails", "params": {"addonid": "inputstream.adaptive", "properties": ["enabled", "version"]}}')
         adaptive_addon = json.loads(adaptive_addon)
-        if not 'error' in adaptive_addon.keys() and adaptive_addon['result']['addon']['enabled'] == True and versiontuple(adaptive_addon['result']['addon']['version']) > versiontuple("2.0.10"):
+        if not 'error' in adaptive_addon.keys() and adaptive_addon['result']['addon']['enabled'] == True and versiontuple(adaptive_addon['result']['addon']['version']) >= versiontuple("2.0.10"):
             li.setMimeType('application/x-mpegURL')        
             li.setProperty("inputstream.adaptive.manifest_type", "hls")
             li.setProperty('inputstreamaddon', 'inputstream.adaptive')            
