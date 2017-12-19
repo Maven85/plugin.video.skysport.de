@@ -22,6 +22,8 @@ params = dict(urlparse.parse_qsl(sys.argv[2][1:]))
 addon_handle = int(sys.argv[1])
 cache = StorageServer.StorageServer(addon.getAddonInfo('name') + '.videoid', 24 * 30)
 
+playmethod = addon.getSetting('playmethod')
+
 HOST = 'http://sport.sky.de'
 NAVIGATION_JSON_FILE = xbmc.translatePath(addon.getAddonInfo('path') +'/resources/navigation.json')
 
@@ -140,13 +142,29 @@ def getVideoListItem(video_id):
 
     adaptive_addon = xbmc.executeJSONRPC('{"jsonrpc": "2.0", "id": 1, "method": "Addons.GetAddonDetails", "params": {"addonid": "inputstream.adaptive", "properties": ["enabled", "version"]}}')
     adaptive_addon = json.loads(adaptive_addon)
-    if not 'error' in adaptive_addon.keys() and adaptive_addon['result']['addon']['enabled'] == True:
+    if playmethod == '0' and 'error' not in adaptive_addon.keys() and adaptive_addon['result']['addon']['enabled'] == True:
         li.setPath(VIDEO_URL_DASH.format(video_id=video_id) + "|" + USER_AGENT)
         li.setMimeType('application/dash+xml')
         li.setProperty("inputstream.adaptive.manifest_type", "mpd")
         li.setProperty('inputstreamaddon', 'inputstream.adaptive')
     else:
-        li.setPath(VIDEO_URL_HSL.format(video_id=video_id) + "|" + USER_AGENT)
+        url = VIDEO_URL_HSL.format(video_id=video_id)
+        response = requests.get(url)
+
+        if response.status_code == 200:
+            maxbandwith = int(addon.getSetting('maxbandwith'))
+            maxresolution = int(addon.getSetting('maxresolution').replace('p', ''))
+
+            matches = re.findall("BANDWIDTH=(\d*).*RESOLUTION=\d*x(\d*)\s*(.*)", response.text)
+            if matches:
+                resolutions = [360, 480, 720, 1080, 0]
+                for m_bandwidth, m_resolution, m_url in matches:
+                    if (maxbandwith == 0 or int(m_bandwidth) <= maxbandwith) and (resolutions[maxresolution] == 0 or int(m_resolution) <= resolutions[maxresolution]):
+                        url = m_url
+
+            response.close()
+
+        li.setPath(url + "|" + USER_AGENT)
 
     return li
 
