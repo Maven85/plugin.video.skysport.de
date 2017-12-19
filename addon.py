@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# coding=utf-8
+# -*- coding: utf-8 -*-
 
 import os
 import re
@@ -23,24 +23,25 @@ addon_handle = int(sys.argv[1])
 cache = StorageServer.StorageServer(addon.getAddonInfo('name') + '.videoid', 24 * 30)
 
 HOST = 'http://sport.sky.de'
-#BASE_PATH = '/alle-sport'
-BASE_PATH = 'fussball/ligen-wettbewerbe'
-BASE_URL = urlparse.urljoin(HOST, BASE_PATH)
+NAVIGATION_JSON_FILE = xbmc.translatePath(addon.getAddonInfo('path') +'/resources/navigation.json')
 
 ADDON_BASE_URL = "plugin://" + addon.getAddonInfo('id')
 
-VIDEO_URL_FMT = "http://player.ooyala.com/player/all/{video_id}.m3u8"
+VIDEO_URL_HSL = "http://player.ooyala.com/player/all/{video_id}.m3u8"
+VIDEO_URL_DASH = "https://videossportskyde.akamaized.net/{video_id}/1/dash/1.mpd"
 
 USER_AGENT = 'User-Agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/63.0.3239.84 Safari/537.36'
 
 def rootDir():
-    html = requests.get(BASE_URL).text
-    soup = BeautifulSoup(html, 'html.parser')
+    nav = json.load(open(NAVIGATION_JSON_FILE))
+    for item in nav:
+        action = item.get('action', 'showVideos')
+        if action == 'showVideos':
+            url = build_url({'action': action, 'path': item.get('path'), 'show_videos': 'false'})
+        else:
+            url = build_url({'action': action, 'path': item.get('path'), 'hasitems': 'true' if item.get('children', None) is not None else 'false'})
 
-    for item in soup('a', 'sdc-site-directory__content'):
-        label = item.span.string
-        url = build_url({'action': 'showVideos', 'path': item.get('href') + '-videos', 'show_videos': 'false'})
-        addDir(label, url)
+        addDir(item.get('label'), url)
 
     xbmcplugin.endOfDirectory(addon_handle, cacheToDisc=True)
 
@@ -51,10 +52,35 @@ def addVideo(label, url, icon, isFolder=False):
     li = xbmcgui.ListItem(label, iconImage=icon, thumbnailImage=icon)
     li.setInfo('video', {})
     li.setProperty('IsPlayable', str(isFolder))
+
     xbmcplugin.addDirectoryItem(handle=addon_handle, url=url, listitem=li, isFolder=isFolder)
 
 def build_url(query):
     return ADDON_BASE_URL + '?' + urllib.urlencode(query)
+
+def listSubnavi(path, hasitems):
+    if hasitems == 'false':
+        url = urlparse.urljoin(HOST, path)
+        html = requests.get(url).text
+        soup = BeautifulSoup(html, 'html.parser')
+
+        for item in soup('a', 'sdc-site-directory__content'):
+            label = item.span.string
+            url = build_url({'action': 'showVideos', 'path': item.get('href') + '-videos', 'show_videos': 'false'})
+            addDir(label, url)
+    else:
+        items = None
+        nav = json.load(open(NAVIGATION_JSON_FILE))
+        for item in nav:
+            if item.get('path') == path:
+                items = item.get('children')
+
+        if items is not None:
+            for item in items:
+                url = build_url({'action': 'showVideos', 'path': item.get('path'), 'show_videos': 'true'})
+                addDir(item.get('label'), url)
+
+    xbmcplugin.endOfDirectory(addon_handle, cacheToDisc=True)
 
 def showVideos(path, show_videos):
     url = urlparse.urljoin(HOST, path)
@@ -65,7 +91,6 @@ def showVideos(path, show_videos):
 
     if show_videos == 'false' and nav is not None:
         for item in nav.findAll('a'):
-            xbmc.log("item = " + str(item))
             label = item.string
             url = build_url({'action': 'showVideos', 'path': item.get('href'), 'show_videos': 'true'})
             if label is not None and label != '':
@@ -105,29 +130,34 @@ def getVideoId(path):
     return video_id
 
 def playVideo(path):
-    video_id = getVideoId(path)
-    if video_id is not None:
-        li = xbmcgui.ListItem()
-        li.setPath(VIDEO_URL_FMT.format(video_id=video_id) + "|" + USER_AGENT)
-        
-        adaptive_addon = xbmc.executeJSONRPC('{"jsonrpc": "2.0", "id": 1, "method": "Addons.GetAddonDetails", "params": {"addonid": "inputstream.adaptive", "properties": ["enabled", "version"]}}')
-        adaptive_addon = json.loads(adaptive_addon)
-        if not 'error' in adaptive_addon.keys() and adaptive_addon['result']['addon']['enabled'] == True and versiontuple(adaptive_addon['result']['addon']['version']) >= versiontuple("2.0.10"):
-            li.setMimeType('application/x-mpegURL')        
-            li.setProperty("inputstream.adaptive.manifest_type", "hls")
-            li.setProperty('inputstreamaddon', 'inputstream.adaptive')            
-
+    video_id = getVideoIdFromCache(path)
+    if video_id is not None: 
+        li = getVideoListItem(video_id)
         xbmcplugin.setResolvedUrl(addon_handle, True, li)
 
-def versiontuple(v):
-    return tuple(map(str, (v.split("."))))
+def getVideoListItem(video_id):
+    li = xbmcgui.ListItem()
+
+    adaptive_addon = xbmc.executeJSONRPC('{"jsonrpc": "2.0", "id": 1, "method": "Addons.GetAddonDetails", "params": {"addonid": "inputstream.adaptive", "properties": ["enabled", "version"]}}')
+    adaptive_addon = json.loads(adaptive_addon)
+    if not 'error' in adaptive_addon.keys() and adaptive_addon['result']['addon']['enabled'] == True:
+        li.setPath(VIDEO_URL_DASH.format(video_id=video_id) + "|" + USER_AGENT)
+        li.setMimeType('application/dash+xml')
+        li.setProperty("inputstream.adaptive.manifest_type", "mpd")
+        li.setProperty('inputstreamaddon', 'inputstream.adaptive')
+    else:
+        li.setPath(VIDEO_URL_HSL.format(video_id=video_id) + "|" + USER_AGENT)
+
+    return li
 
 if __name__ == '__main__':
     if 'action' in params:
 
         xbmc.log("params = " + str(params))
 
-        if params.get('action') == 'showVideos':
+        if params.get('action') == 'listSubnavi':
+            listSubnavi(params.get('path'), params.get('hasitems'))
+        elif params.get('action') == 'showVideos':
             showVideos(params.get('path'), params.get('show_videos'))
         elif params.get('action') == 'playVideo':
             playVideo(params.get('path'))
