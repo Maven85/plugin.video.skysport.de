@@ -38,6 +38,9 @@ def rootDir():
     url = build_url({'action': 'playLive'})
     addVideo("Sky Sport News HD", url, sky_sport_news_icon)
 
+    url = build_url({'action': 'listHome'})
+    addDir('Home', url)
+
     nav = json.load(open(NAVIGATION_JSON_FILE))
     for item in nav:
         action = item.get('action', 'showVideos')
@@ -56,7 +59,8 @@ def addDir(label, url, icon=None):
 
 
 def addVideo(label, url, icon, isFolder=False):
-    li = xbmcgui.ListItem(label, iconImage=icon, thumbnailImage=icon)
+    li = xbmcgui.ListItem(label)
+    li.setArt({'icon': icon, 'thumb': icon})
     li.setInfo('video', {})
     li.setProperty('IsPlayable', str(isFolder))
 
@@ -65,6 +69,22 @@ def addVideo(label, url, icon, isFolder=False):
 
 def build_url(query):
     return ADDON_BASE_URL + '?' + urllib.urlencode(query)
+
+
+def listHome():
+    html = requests.get(HOST).text
+    soup = BeautifulSoup(html, 'html.parser')
+
+    for item in soup('div', 'sdc-site-tile--has-link'):
+        videoitem = item.find('span', {'class': 'sdc-site-tile__badge'})
+        if videoitem is not None and videoitem.find('path') is not None:
+            headline = item.find('h3', {'class': 'sdc-site-tile__headline'})
+            label = headline.span.string
+            url = build_url({'action': 'playVoD', 'path': headline.a.get('href')})
+            icon = item.img.get('src')
+            addVideo(label, url, icon)
+
+    xbmcplugin.endOfDirectory(addon_handle, cacheToDisc=True)
 
 
 def listSubnavi(path, hasitems):
@@ -201,6 +221,8 @@ if __name__ == '__main__':
 
         if params.get('action') == 'playLive':
             playLive()
+        elif params.get('action') == 'listHome':
+            listHome()
         elif params.get('action') == 'listSubnavi':
             listSubnavi(params.get('path'), params.get('hasitems'))
         elif params.get('action') == 'showVideos':
