@@ -89,7 +89,11 @@ def listSubnavi(path, hasitems):
 
         if items is not None:
             for item in items:
-                url = build_url({'action': 'showVideos', 'path': item.get('path'), 'show_videos': 'true'})
+                action = item.get('action') if item.get('action', None) is not None else 'showVideos'
+                if action == 'listSubnavi':
+                    url = build_url({'action': action, 'path': item.get('path'), 'hasitems': 'true' if item.get('children', None) is not None else 'false'})
+                else:
+                    url = build_url({'action': action, 'path': item.get('path'), 'show_videos': 'true' if item.get('show_videos', None) is None or item.get('show_videos') == 'true' else 'false'})
                 addDir(item.get('label'), url)
 
     xbmcplugin.endOfDirectory(addon_handle, cacheToDisc=True)
