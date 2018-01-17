@@ -23,15 +23,12 @@ addon_handle = int(sys.argv[1])
 cache = StorageServer.StorageServer(addon.getAddonInfo('name') + '.videoid', 24 * 30)
 sky_sport_news_icon = xbmc.translatePath(addon.getAddonInfo('path') + '/resources/skysport_news.jpg').decode('utf-8')
 
-vod_playmethod = addon.getSetting('playmethod')
-
 HOST = 'http://sport.sky.de'
 NAVIGATION_JSON_FILE = xbmc.translatePath(addon.getAddonInfo('path') + '/resources/navigation.json')
 
 ADDON_BASE_URL = 'plugin://' + addon.getAddonInfo('id')
 
 VIDEO_URL_HSL = 'https://player.ooyala.com/player/all/{video_id}.m3u8'
-VIDEO_URL_DASH = 'https://videossportskyde.akamaized.net/{video_id}/1/dash/1.mpd'
 LIVE_URL_HSL = 'https://eventhlshttps-i.akamaihd.net/hls/live/263645/ssn-hd-https/index.m3u8'
 
 USER_AGENT = 'User-Agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/63.0.3239.84 Safari/537.36'
@@ -167,26 +164,13 @@ def getVideoListItem(video_id):
     adaptive_addon = xbmc.executeJSONRPC('{"jsonrpc": "2.0", "id": 1, "method": "Addons.GetAddonDetails", "params": {"addonid": "inputstream.adaptive", "properties": ["enabled", "version"]}}')
     adaptive_addon = json.loads(adaptive_addon)
 
-    if vod_playmethod == '0' and 'error' not in adaptive_addon.keys() and adaptive_addon['result']['addon']['enabled'] == True:
-        li.setProperty('inputstreamaddon', 'inputstream.adaptive')
+    maxbandwith = int(addon.getSetting('maxbandwith'))
+    maxresolution = int(addon.getSetting('maxresolution').replace('p', ''))
 
-        if video_id is not None:
-            url = VIDEO_URL_DASH.format(video_id=video_id)
-            li.setMimeType('application/dash+xml')
-            li.setProperty("inputstream.adaptive.", "mpd")
-        else:
-            url = LIVE_URL_HSL
-            li.setMimeType('application/x-mpegURL')
-            li.setProperty("inputstream.adaptive.manifest_type", "hls")
+    if video_id is None:
+        url = getHLSUrl(LIVE_URL_HSL, maxbandwith, maxresolution)
     else:
-        maxbandwith = int(addon.getSetting('maxbandwith'))
-        maxresolution = int(addon.getSetting('maxresolution').replace('p', ''))
-
-        if video_id is None:
-            url = getHLSUrl(LIVE_URL_HSL, maxbandwith, maxresolution)
-            xbmc.log("liveurl = " + url)
-        else:
-            url = getHLSUrl(VIDEO_URL_HSL.format(video_id=video_id), maxbandwith, maxresolution)
+        url = getHLSUrl(VIDEO_URL_HSL.format(video_id=video_id), maxbandwith, maxresolution)
 
     li.setPath(url + "|" + USER_AGENT)
 

@@ -1,3 +1,4 @@
+0.5.1 removed inputstream.adaptive
 0.5.0 added videos for the categories "Football" and "Handball"
 0.4.0 added livestream of sky sport news
 0.3.0 added settings for maxbandwidth/maxresolution/playmethod
