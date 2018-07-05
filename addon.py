@@ -185,7 +185,7 @@ def getVideoListItem(video_id):
     adaptive_addon = json.loads(adaptive_addon)
 
     maxbandwith = int(addon.getSetting('maxbandwith'))
-    maxresolution = int(addon.getSetting('maxresolution').replace('p', ''))
+    maxresolution = int(addon.getSetting('maxresolution'))
 
     if video_id is None:
         url = getHLSUrl(LIVE_URL_HSL, maxbandwith, maxresolution)
