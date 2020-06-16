@@ -23,7 +23,7 @@ except:
 
 HOST = 'http://sport.sky.de'
 VIDEO_URL_HSL = 'https://player.ooyala.com/player/all/{0}.m3u8'
-LIVE_URL_HSL = 'https://eventhlshttps-i.akamaihd.net/hls/live/263645/ssn-hd-https/index.m3u8'
+LIVE_URL_HSL = 'https://websitefreestreaming.akamaized.net/11111_ssnweb/index.m3u8'
 USER_AGENT = 'User-Agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/63.0.3239.84 Safari/537.36'
 
 addon = xbmcaddon.Addon()
@@ -188,7 +188,7 @@ def getVideoListItem(video_id):
     maxresolution = int(addon.getSetting('maxresolution').replace('p', ''))
 
     if video_id is None:
-        url = getHLSUrl(LIVE_URL_HSL, maxbandwith, maxresolution)
+        url = LIVE_URL_HSL
     else:
         url = getHLSUrl(VIDEO_URL_HSL.format(video_id), maxbandwith, maxresolution)
 
