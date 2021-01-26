@@ -8,7 +8,7 @@ import sys
 import xbmc, xbmcplugin, xbmcaddon, xbmcgui
 import requests
 import json
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, element as bs4Element
 
 try:
     import StorageServer
@@ -159,10 +159,14 @@ def getVideoId(path):
     if video_id.get('id') is None:
         scripts = soup.findAll('script')
         for script in scripts:
-            script = script.text
+            if hasattr(bs4Element, 'Script') and isinstance(script.string, bs4Element.Script):
+                script = script.string
+            else:
+                script = script.text
             match = re.search('data-sdc-video-id="([^"]*)"', script)
             if match is not None:
                 video_id.update({'id': match.group(1)})
+                break
 
     return video_id
 
