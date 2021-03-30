@@ -1,9 +1,13 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <settings>
 	<category label="Allgemein">
-		<setting label="Wiedergabe" type="lsep"/>
-		<setting id="maxbandwith" type="number" label="max. Bitrate (0 = kein Limit)" default="0" />
-		<setting id="maxresolution" type="enum" label="max. Auflösung" values="360p|480p|720p|1080p|Max" default="4" />
+		<setting label="Anmeldung" type="lsep"/>
+		<setting id="user" type="text" visible="false" label="E-Mail" default="" />
+		<setting id="password" type="text" visible="false" label="Passwort" default="" />
+		<setting id="user_token" type="text" visible="false" label="User-Token" default="" />
+		<setting id="login" type="action" label="Anmelden" visible="eq(-3,)" action="RunPlugin(plugin://plugin.video.skysport.de/?action=login)" option="close" />
+		<setting id="login_acc" type="text" label="Angemeldet als" visible="!eq(0,)" enable="false" default="" />
+		<setting id="logout" type="action"  label="Abmelden" action="RunPlugin(plugin://plugin.video.skysport.de/?action=logout)" visible="!eq(-5,)" option="close" />
 		<setting label="Cache" type="lsep"/>
 		<setting id="clear_cache" type="action" label="Cache leeren" action="RunPlugin(plugin://plugin.video.skysport.de/?action=clearCache)" />
 	</category>
