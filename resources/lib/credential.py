@@ -2,7 +2,7 @@
 
 from __future__ import unicode_literals
 from kodi_six.utils import py2_encode
-from base64 import b64encode, b64decode
+
 from Cryptodome.Cipher import DES3
 from Cryptodome.Util.Padding import pad, unpad
 from time import sleep
@@ -22,7 +22,7 @@ class Credential:
     def encode(self, data):
         key_handle = DES3.new(self.uniq_id(), DES3.MODE_CBC, iv=b'\0\0\0\0\0\0\0\0')
         encrypted = key_handle.encrypt(pad(data.encode('utf-8'), DES3.block_size))
-        return b64encode(encrypted)
+        return self.plugin.b64enc(encrypted)
 
 
     def decode(self, data):
@@ -30,7 +30,7 @@ class Credential:
             return data
 
         key_handle = DES3.new(self.uniq_id(), DES3.MODE_CBC, iv=b'\0\0\0\0\0\0\0\0')
-        decrypted = unpad(key_handle.decrypt(b64decode(data)), DES3.block_size)
+        decrypted = unpad(key_handle.decrypt(self.plugin.b64dec(data)), DES3.block_size)
         return decrypted.decode('utf-8')
 
 
