@@ -3,6 +3,7 @@
 from __future__ import unicode_literals
 from kodi_six.utils import py2_encode
 
+from base64 import b64encode as base64_b64encode, b64decode as base64_b64decode
 from hashlib import md5 as hashlib_md5
 from time import sleep as time_sleep
 from uuid import UUID as uuid_UUID
@@ -40,6 +41,21 @@ class Common:
 
     def build_url(self, query):
         return 'plugin://{0}?{1}'.format(self.addon_id, urlencode(query))
+
+
+    def b64enc(self, data):
+        enc_data = base64_b64encode(data)
+        missing_padding = len(enc_data) % 4
+        if missing_padding != 0:
+            enc_data = '{0}{1}'.format(enc_data, py2_encode('=') * (4 - missing_padding))
+        return enc_data
+
+
+    def b64dec(self, data):
+        missing_padding = len(data) % 4
+        if missing_padding != 0:
+            data = '{0}{1}'.format(data, py2_encode('=') * (4 - missing_padding))
+        return base64_b64decode(data)
 
 
     def get_listitem(self):

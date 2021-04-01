@@ -155,7 +155,8 @@ class Content:
                                     account_id=div.get('data-account-id'),
                                     id=div.get('data-sdc-video-id'),
                                     auth_config=json_loads(div.get('data-auth-config')),
-                                    originator_handle=div.get('data-originator-handle')
+                                    originator_handle=div.get('data-originator-handle'),
+                                    package_name=div.get('data-package-name')
                                     ))
 
         if not video_config:
@@ -182,6 +183,10 @@ class Content:
                 if match is not None:
                     video_config.update(dict(originator_handle=match.group(1)))
 
+                match = re_search('data-package-name="([^"]*)"', script)
+                if match is not None:
+                    video_config.update(dict(package_name=match.group(1)))
+
                 video_config.update(dict(user_token_required=True))
 
         return video_config
@@ -206,18 +211,18 @@ class Content:
 
         if not video_config:
             url = self.live_hls_url
+            li.setPath('{0}|{1}'.format(url, self.user_agent))
         else:
             video_config = self.getToken(video_config)
             if video_config.get('user_token_required') and not self.plugin.get_setting('user_token'):
                 self.plugin.dialog_notification('Login erforderlich')
-                return li
+            elif self.plugin.get_setting('booked_packages') and video_config.get('package_name') and video_config.get('package_name') not in self.plugin.get_setting('booked_packages').split(','):
+                self.plugin.dialog_notification('Paket "{0}" erforderlich'.format(video_config.get('package_name')))
             elif not video_config.get('token'):
                 self.plugin.dialog_notification('Auth-Token konnte nicht abgerufen werden')
-                return li
             else:
                 url = self.getUrl(video_config)
-
-        li.setPath('{0}|{1}'.format(url, self.user_agent))
+                li.setPath('{0}|{1}'.format(url, self.user_agent))
 
         return li
 
@@ -239,7 +244,8 @@ class Content:
         if video_config.get('user_token_required'):
             data.update(dict(userToken=self.plugin.get_setting('user_token')))
         res = requests_post(video_config.get('auth_config').get('url'), headers=video_config.get('auth_config').get('headers'), data=data)
-        video_config.update(dict(token=res.text[1:-1]))
+        if res.status_code == 200:
+            video_config.update(dict(token=res.text[1:-1]))
         return video_config
 
 
@@ -248,8 +254,11 @@ class Content:
         res = requests_post('https://auth.sport.sky.de/login', data=dict(user=data.get('user'), pin=data.get('password')))
         if res.status_code == 200:
             self.credential.set_credentials(data.get('user'), data.get('password'))
-            self.plugin.set_setting('user_token', res.text[1:-1])
+            user_token = res.text[1:-1]
+            self.plugin.set_setting('user_token', user_token)
             self.plugin.set_setting('login_acc', data.get('user'))
+            packages = json_loads(self.plugin.b64dec(user_token.split('.')[1])).get('packages')
+            self.plugin.set_setting('booked_packages', ','.join(packages))
             self.plugin.dialog_notification('Anmeldung erfolgreich')
         else:
             self.plugin.dialog_notification('Anmeldung nicht erfolgreich')
@@ -258,6 +267,7 @@ class Content:
     def logout(self):
         self.credential.clear_credentials()
         self.plugin.set_setting('login_acc', '')
+        self.plugin.set_setting('booked_packages', '')
         self.plugin.dialog_notification('Abmeldung erfolgreich')
 
 

@@ -2,7 +2,6 @@
 
 from __future__ import unicode_literals
 from kodi_six.utils import py2_encode
-from base64 import b64encode, b64decode
 from pyDes import CBC as pyDes_CBC, PAD_PKCS5 as pyDes_PAD_PKCS5, triple_des as pyDes_triple_des
 from time import sleep
 from uuid import NAMESPACE_DNS, uuid5
@@ -21,7 +20,7 @@ class Credential:
     def encode(self, data):
         key_handle = pyDes_triple_des(self.uniq_id(), pyDes_CBC, b'\0\0\0\0\0\0\0\0', padmode=pyDes_PAD_PKCS5)
         encrypted = key_handle.encrypt(data)
-        return b64encode(encrypted)
+        return self.plugin.b64enc(encrypted)
 
 
     def decode(self, data):
@@ -29,7 +28,7 @@ class Credential:
             return data
 
         key_handle = pyDes_triple_des(self.uniq_id(), pyDes_CBC, b'\0\0\0\0\0\0\0\0', padmode=pyDes_PAD_PKCS5)
-        decrypted = key_handle.decrypt(base64.b64decode(data))
+        decrypted = key_handle.decrypt(self.plugin.b64dec(data))
         return decrypted.decode('utf-8')
 
 
