@@ -2,6 +2,7 @@
 
 from __future__ import unicode_literals
 
+from base64 import b64decode
 from bs4 import BeautifulSoup, element as bs4Element
 from json import load as json_load, loads as json_loads
 from re import compile as re_compile, search as re_search
@@ -240,10 +241,12 @@ class Content:
 
 
     def getToken(self, video_config):
+        headers = video_config.get('auth_config').get('headers')
+        headers.update(dict(Authorization=b64decode(headers.get('Authorization'))))
         data = dict(fileReference=video_config.get('id'), v='1', originatorHandle=video_config.get('originator_handle'))
         if video_config.get('user_token_required'):
             data.update(dict(userToken=self.plugin.get_setting('user_token')))
-        res = requests_post(video_config.get('auth_config').get('url'), headers=video_config.get('auth_config').get('headers'), data=data)
+        res = requests_post(video_config.get('auth_config').get('url'), headers=headers, data=data)
         if res.status_code == 200:
             video_config.update(dict(token=res.text[1:-1]))
         return video_config
