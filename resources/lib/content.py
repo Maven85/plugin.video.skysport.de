@@ -4,6 +4,7 @@ from __future__ import unicode_literals
 
 from base64 import b64decode
 from bs4 import BeautifulSoup, element as bs4Element
+from datetime import datetime
 from json import load as json_load, loads as json_loads
 from re import compile as re_compile, search as re_search
 from requests import get as requests_get, post as requests_post
@@ -214,6 +215,9 @@ class Content:
             url = self.live_hls_url
             li.setPath('{0}|{1}'.format(url, self.user_agent))
         else:
+            if self.plugin.get_setting('user_token') and self.plugin.get_setting('token_exp') and datetime.fromtimestamp(int(self.plugin.get_setting('token_exp'))) < datetime.now():
+                self.login(True)
+
             video_config = self.getToken(video_config)
             if video_config.get('user_token_required') and not self.plugin.get_setting('user_token'):
                 self.plugin.dialog_notification('Login erforderlich')
@@ -252,7 +256,7 @@ class Content:
         return video_config
 
 
-    def login(self):
+    def login(self, silence=False):
         data = self.credential.get_credentials()
         res = requests_post('https://auth.sport.sky.de/login', data=dict(user=data.get('user'), pin=data.get('password')))
         if res.status_code == 200:
@@ -260,9 +264,11 @@ class Content:
             user_token = res.text[1:-1]
             self.plugin.set_setting('user_token', user_token)
             self.plugin.set_setting('login_acc', data.get('user'))
-            packages = json_loads(self.plugin.b64dec(user_token.split('.')[1])).get('packages')
-            self.plugin.set_setting('booked_packages', ','.join(packages))
-            self.plugin.dialog_notification('Anmeldung erfolgreich')
+            token_payload = json_loads(self.plugin.b64dec(user_token.split('.')[1]))
+            self.plugin.set_setting('booked_packages', ','.join(token_payload.get('packages')))
+            self.plugin.set_setting('token_exp', str(token_payload.get('exp')))
+            if silence == False:
+                self.plugin.dialog_notification('Anmeldung erfolgreich')
         else:
             self.plugin.dialog_notification('Anmeldung nicht erfolgreich')
 
