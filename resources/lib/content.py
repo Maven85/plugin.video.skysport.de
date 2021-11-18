@@ -37,9 +37,6 @@ class Content:
 
 
     def rootDir(self):
-        url = self.plugin.build_url({'action': 'playLive'})
-        self.addVideo('Sky Sport News HD', url, self.sky_sport_news_icon)
-
         url = self.plugin.build_url({'action': 'listHome'})
         self.addDir('Home', url)
 
@@ -200,11 +197,6 @@ class Content:
             li = self.getVideoListItem(video_config)
         else:
             li = self.plugin.get_listitem()
-        xbmcplugin.setResolvedUrl(self.plugin.addon_handle, True, li)
-
-
-    def playLive(self):
-        li = self.getVideoListItem(None)
         xbmcplugin.setResolvedUrl(self.plugin.addon_handle, True, li)
 
 
