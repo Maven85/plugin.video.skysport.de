@@ -27,9 +27,7 @@ def run(argv):
 
         plugin.log('params = {0}'.format(params))
 
-        if params.get('action') == 'playLive':
-            content.playLive()
-        elif params.get('action') == 'listHome':
+        if params.get('action') == 'listHome':
             content.listHome()
         elif params.get('action') == 'listSubnavi':
             content.listSubnavi(params.get('path'), params.get('hasitems'), params.get('items_to_add'))
