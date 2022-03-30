@@ -30,7 +30,6 @@ class Content:
 
         self.base_url = 'https://sport.sky.de'
         self.htmlparser = HTMLParser()
-        self.live_hls_url = 'https://websitefreestreaming.akamaized.net/11111_ssnweb/index.m3u8'
         self.nav_json = json_load(open(xbmcvfs_translatePath('{0}/resources/navigation.json'.format(self.plugin.addon_path))))
         self.sky_sport_news_icon = '{0}/resources/skysport_news.jpg'.format(xbmcvfs_translatePath(self.plugin.addon_path))
         self.user_agent = 'User-Agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.90 Safari/537.36'
@@ -127,7 +126,7 @@ class Content:
                 if label is not None and label != '':
                     self.addDir(label, url)
         else:
-            for item in soup.find_all('div', class_=re_compile('^sdc-site-tiles__item sdc-site-tile sdc-site-tile--has-link')):
+            for item in soup.find_all('div', class_=re_compile('^sdc-site-tile--has-link')):
                 link = item.find('a', {'class': 'sdc-site-tile__headline-link'})
                 label = link.span.string
                 url = self.plugin.build_url({'action': 'playVoD', 'path': link.get('href')})
@@ -203,23 +202,19 @@ class Content:
     def getVideoListItem(self, video_config):
         li = self.plugin.get_listitem()
 
-        if not video_config:
-            url = self.live_hls_url
-            li.setPath('{0}|{1}'.format(url, self.user_agent))
-        else:
-            if self.plugin.get_setting('user_token') and self.plugin.get_setting('token_exp') and datetime.fromtimestamp(int(self.plugin.get_setting('token_exp'))) < datetime.now():
-                self.login(True)
+        if self.plugin.get_setting('user_token') and self.plugin.get_setting('token_exp') and datetime.fromtimestamp(int(self.plugin.get_setting('token_exp'))) < datetime.now():
+            self.login(True)
 
-            video_config = self.getToken(video_config)
-            if video_config.get('user_token_required') and not self.plugin.get_setting('user_token'):
-                self.plugin.dialog_notification('Login erforderlich')
-            elif self.plugin.get_setting('booked_packages') and video_config.get('package_name') and video_config.get('package_name') not in self.plugin.get_setting('booked_packages').split(','):
-                self.plugin.dialog_notification('Paket "{0}" erforderlich'.format(video_config.get('package_name')))
-            elif not video_config.get('token'):
-                self.plugin.dialog_notification('Auth-Token konnte nicht abgerufen werden')
-            else:
-                url = self.getUrl(video_config)
-                li.setPath('{0}|{1}'.format(url, self.user_agent))
+        video_config = self.getToken(video_config)
+        if video_config.get('user_token_required') and not self.plugin.get_setting('user_token'):
+            self.plugin.dialog_notification('Login erforderlich')
+        elif self.plugin.get_setting('booked_packages') and video_config.get('package_name') and video_config.get('package_name') not in self.plugin.get_setting('booked_packages').split(','):
+            self.plugin.dialog_notification('Paket "{0}" erforderlich'.format(video_config.get('package_name')))
+        elif not video_config.get('token'):
+            self.plugin.dialog_notification('Auth-Token konnte nicht abgerufen werden')
+        else:
+            url = self.getUrl(video_config)
+            li.setPath('{0}|{1}'.format(url, self.user_agent))
 
         return li
 
