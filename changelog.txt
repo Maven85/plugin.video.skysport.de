@@ -1,3 +1,4 @@
+1.2.5  fixed display of videos
 1.2.4  removed live stream 'Sky Sport News' (unavailable)
 1.2.3  renew user token when it has expired
 1.2.2  fixed getting auth tokens
