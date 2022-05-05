@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from __future__ import unicode_literals
-from kodi_six.utils import py2_encode
+from kodi_six.utils import PY2, py2_encode
 
 from base64 import b64encode as base64_b64encode, b64decode as base64_b64decode
 from hashlib import md5 as hashlib_md5
@@ -16,10 +16,10 @@ try:
 except:
     import storageserverdummy as StorageServer
 
-try:
-    from urllib.parse import urlencode
-except:
+if PY2:
     from urllib import urlencode
+else:
+    from urllib.parse import urlencode
 
 
 class Common:
