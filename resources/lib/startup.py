@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from __future__ import unicode_literals
+from kodi_six.utils import PY2
 
 from resources.lib.content import Content
 from resources.lib.common import Common
@@ -8,10 +9,10 @@ from resources.lib.credential import Credential
 
 import xbmcaddon
 
-try:
-    from urllib.parse import parse_qsl as urllib_parse_qsl
-except:
+if PY2:
     from urlparse import parse_qsl as urllib_parse_qsl
+else:
+    from urllib.parse import parse_qsl as urllib_parse_qsl
 
 
 def run(argv):

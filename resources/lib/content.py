@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from __future__ import unicode_literals
+from kodi_six.utils import PY2
 
 from base64 import b64decode
 from bs4 import BeautifulSoup, element as bs4Element
@@ -11,14 +12,14 @@ from requests import get as requests_get, post as requests_post
 
 import xbmcplugin
 
-try:
-    from html.parser import HTMLParser
-    from urllib.parse import urljoin as urllib_urljoin
-    from xbmcvfs import translatePath as xbmcvfs_translatePath
-except:
+if PY2:
     from HTMLParser import HTMLParser
     from urlparse import urljoin as urllib_urljoin
     from xbmc import translatePath as xbmcvfs_translatePath
+else:
+    from html.parser import unescape as htmlparser_unescape
+    from urllib.parse import urljoin as urllib_urljoin
+    from xbmcvfs import translatePath as xbmcvfs_translatePath
 
 
 class Content:
@@ -29,7 +30,7 @@ class Content:
         self.credential = credential
 
         self.base_url = 'https://sport.sky.de'
-        self.htmlparser = HTMLParser()
+        self.htmlparser_unescape = HTMLParser().unescape if PY2 else htmlparser_unescape
         self.nav_json = json_load(open(xbmcvfs_translatePath('{0}/resources/navigation.json'.format(self.plugin.addon_path))))
         self.sky_sport_news_icon = '{0}/resources/skysport_news.jpg'.format(xbmcvfs_translatePath(self.plugin.addon_path))
         self.user_agent = 'User-Agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.90 Safari/537.36'
@@ -59,7 +60,7 @@ class Content:
         li = self.plugin.get_listitem()
         li.setLabel(label)
         li.setArt({'icon': icon, 'thumb': icon})
-        li.setInfo('video', {})
+        li.setInfo('video', dict())
         li.setProperty('IsPlayable', str(isFolder))
 
         xbmcplugin.addDirectoryItem(handle=self.plugin.addon_handle, url=url, listitem=li, isFolder=isFolder)
@@ -175,7 +176,7 @@ class Content:
 
                 match = re_search('data-auth-config="([^"]*)"', script)
                 if match is not None:
-                    video_config.update(dict(auth_config=json_loads(self.htmlparser.unescape(match.group(1)))))
+                    video_config.update(dict(auth_config=json_loads(self.htmlparser_unescape(match.group(1)))))
 
                 match = re_search('data-originator-handle="([^"]*)"', script)
                 if match is not None:
