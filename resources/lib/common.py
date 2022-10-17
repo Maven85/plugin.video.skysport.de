@@ -31,6 +31,7 @@ class Common:
         self.addon_id = self.addon.getAddonInfo('id')
         self.addon_name = self.addon.getAddonInfo('name')
         self.addon_path = self.addon.getAddonInfo('path')
+        self.kodi_version = int(xbmc.getInfoLabel('System.BuildVersion').split('.')[0])
 
         self.cache = StorageServer.StorageServer(py2_encode('{0}.videoid').format(self.addon_name), 24 * 30)
 
@@ -98,3 +99,13 @@ class Common:
             self.log('[{0}] error: failed to get device id ({1})'.format(self.addon_id, str(mac_addr)))
             self.dialog_ok('Geräte-Id konnte nicht ermittelt werden.')
         return device_id
+
+
+    def set_videoinfo(self, listitem, infolabels):
+
+        if self.kodi_version < 20:
+            listitem.getVideoInfoTag()
+        else:
+            listitem.setInfo('video', infolabels)
+
+        return listitem

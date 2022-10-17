@@ -60,7 +60,7 @@ class Content:
         li = self.plugin.get_listitem()
         li.setLabel(label)
         li.setArt({'icon': icon, 'thumb': icon})
-        li.setInfo('video', dict())
+        li = self.plugin.set_videoinfo(li, dict())
         li.setProperty('IsPlayable', str(isFolder))
 
         xbmcplugin.addDirectoryItem(handle=self.plugin.addon_handle, url=url, listitem=li, isFolder=isFolder)
