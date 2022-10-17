@@ -118,7 +118,7 @@ class Content:
         html = requests_get(url).text
         soup = BeautifulSoup(html, 'html.parser')
 
-        nav = soup.find('nav', {'aria-label': 'Videos:'})
+        nav = soup.find('div', {'aria-label': 'Videos:'})
 
         if show_videos == 'false' and nav is not None:
             for item in nav.findAll('a'):
