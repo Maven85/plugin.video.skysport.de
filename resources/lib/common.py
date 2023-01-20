@@ -86,6 +86,12 @@ class Common:
     def uniq_id(self):
         device_id = ''
         mac_addr = xbmc.getInfoLabel('Network.MacAddress')
+        # hack response busy
+        i = 0
+        while not py2_encode(':') in mac_addr and i < 3:
+            i += 1
+            time_sleep(1)
+            mac_addr = xbmc.getInfoLabel('Network.MacAddress')
         if py2_encode(':') in mac_addr:
             device_id = str(uuid_UUID(hashlib_md5(mac_addr.encode('utf-8')).hexdigest()))
         elif xbmc.getCondVisibility('System.Platform.Android'):
