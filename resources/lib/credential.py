@@ -19,8 +19,8 @@ class Credential:
 
 
     def encode(self, data):
-        key_handle = DES3.new(self.uniq_id(), DES3.MODE_CBC, iv=b'\0\0\0\0\0\0\0\0')
-        encrypted = key_handle.encrypt(pad(data.encode('utf-8'), DES3.block_size))
+        key_handle = pyDes_triple_des(self.uniq_id(), pyDes_CBC, b'\0\0\0\0\0\0\0\0', padmode=pyDes_PAD_PKCS5)
+        encrypted = key_handle.encrypt(data)
         return self.plugin.b64enc(encrypted)
 
 
