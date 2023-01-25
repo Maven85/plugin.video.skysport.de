@@ -105,7 +105,7 @@ class Common:
 
 
     def get_android_uuid(self):
-        from subprocess import subprocess_PIPE, subprocess_Popen
+        from subprocess import PIPE as subprocess_PIPE, Popen as subprocess_Popen
         from re import sub as re_sub
         values = ''
         try:
