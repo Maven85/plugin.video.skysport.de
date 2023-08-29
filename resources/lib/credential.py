@@ -1,15 +1,21 @@
 # -*- coding: utf-8 -*-
 
 from __future__ import unicode_literals
-from kodi_six.utils import py2_encode
+from kodi_six.utils import PY2, py2_encode
 
 from Cryptodome.Cipher import DES3
 from Cryptodome.Util.Padding import pad, unpad
+from http.cookiejar import MozillaCookieJar
+from os import path as os_path
 from time import sleep
 from uuid import NAMESPACE_DNS, uuid5
 
-import xbmc
 import xbmcgui
+
+if PY2:
+    from xbmc import translatePath as xbmcvfs_translatePath
+else:
+    from xbmcvfs import translatePath as xbmcvfs_translatePath
 
 
 class Credential:
@@ -17,6 +23,7 @@ class Credential:
 
     def __init__(self, plugin):
         self.plugin = plugin
+        self.cookie_file = xbmcvfs_translatePath('{0}/COOKIE'.format(self.plugin.addon_profile))
 
 
     def encode(self, data):
@@ -47,8 +54,7 @@ class Credential:
     def has_credentials(self):
         user = self.plugin.get_setting('user')
         password = self.plugin.get_setting('password')
-        user_token = self.plugin.get_setting('user_token')
-        return user != '' and password != '' and user_token != ''
+        return user != '' and password != ''
 
 
     def set_credentials(self, user, password):
@@ -67,16 +73,24 @@ class Credential:
         else:
             user = self.plugin.get_dialog().input('E-Mail-Adresse oder Kundennummer', type=xbmcgui.INPUT_ALPHANUM)
             password = self.plugin.get_dialog().input('Passwort', type=xbmcgui.INPUT_ALPHANUM, option=xbmcgui.ALPHANUM_HIDE_INPUT)
-            if len(password) == 4:
+            if len(password) > 0:
                 return {
                     'user': user,
                     'password': password
                 }
-        return {}
+        return dict()
 
 
     def clear_credentials(self):
-        user, password, user_token = '', '', ''
+        user, password = '', ''
         self.plugin.set_setting('user', user)
         self.plugin.set_setting('password', password)
-        self.plugin.set_setting('user_token', user_token)
+
+
+    def load_cookies(self):
+        if os_path.isfile(self.cookie_file):
+            jar = MozillaCookieJar(self.cookie_file)
+            jar.load(ignore_expires=True)
+        else:
+            jar = MozillaCookieJar(self.cookie_file)
+        return jar

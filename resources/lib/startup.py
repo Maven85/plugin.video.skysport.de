@@ -33,7 +33,9 @@ def run(argv):
         elif params.get('action') == 'listSubnavi':
             content.listSubnavi(params.get('path'), params.get('hasitems'), params.get('items_to_add'))
         elif params.get('action') == 'showVideos':
-            content.showVideos(params.get('path'), params.get('show_videos'))
+            content.showVideos(params.get('path'), params.get('section'), params.get('show_videos'))
+        elif params.get('action') == 'showMoreVideos':
+            content.showMoreVideos(params.get('path'), int(params.get('page')), params.get('moreLabel'))
         elif params.get('action') == 'playVoD':
             content.playVoD(params.get('path'))
         elif params.get('action') == 'login':
