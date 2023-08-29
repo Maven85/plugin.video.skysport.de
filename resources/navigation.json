@@ -21,6 +21,8 @@
 				"includes": [
 					"/bundesliga",
 					"/2-bundesliga",
+					"/3-liga",
+					"/frauen-bundesliga",
 					"/dfb-pokal",
 					"/uefa-champions-league",
 					"/uefa-europa-league",

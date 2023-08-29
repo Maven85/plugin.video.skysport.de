@@ -4,11 +4,11 @@ from __future__ import unicode_literals
 from kodi_six.utils import PY2
 
 from base64 import b64decode
-from bs4 import BeautifulSoup, element as bs4Element
+from bs4 import BeautifulSoup, element as bs4_element, Tag as bs4_tag
 from datetime import datetime
 from json import load as json_load, loads as json_loads
 from re import compile as re_compile, search as re_search
-from requests import get as requests_get, post as requests_post
+from requests import get as requests_get, post as requests_post, session as requests_session
 
 import xbmcplugin
 
@@ -33,7 +33,7 @@ class Content:
         self.htmlparser_unescape = HTMLParser().unescape if PY2 else htmlparser_unescape
         self.nav_json = json_load(open(xbmcvfs_translatePath('{0}/resources/navigation.json'.format(self.plugin.addon_path))))
         self.sky_sport_news_icon = '{0}/resources/skysport_news.jpg'.format(xbmcvfs_translatePath(self.plugin.addon_path))
-        self.user_agent = 'User-Agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.90 Safari/537.36'
+        self.user_agent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36'
 
 
     def rootDir(self):
@@ -113,26 +113,59 @@ class Content:
         xbmcplugin.endOfDirectory(self.plugin.addon_handle, cacheToDisc=True)
 
 
-    def showVideos(self, path, show_videos):
+    def showVideos(self, path, section, show_videos):
         url = urllib_urljoin(self.base_url, path)
         html = requests_get(url).text
         soup = BeautifulSoup(html, 'html.parser')
 
-        nav = soup.find('div', {'aria-label': 'Videos:'})
-
-        if show_videos == 'false' and nav is not None:
-            for item in nav.findAll('a'):
-                label = item.string
-                url = self.plugin.build_url({'action': 'showVideos', 'path': item.get('href'), 'show_videos': 'true'})
-                if label is not None and label != '':
-                    self.addDir(label, url)
+        if show_videos == 'false':
+            containers = soup.findAll('section', {'class': 'sdc-site-carousel--sports-rail'})
+            if containers is not None:
+                for c in containers:
+                    if isinstance(c, bs4_tag):
+                        label = c.find('h2', {'class', 'sdc-site-carousel__title'}).string
+                        all_tag = c.find('span', {'class': 'sdc-site-carousel__view-all'})
+                        if all_tag:
+                            url = self.plugin.build_url({'action': 'showVideos', 'path': all_tag.a.get('href'), 'show_videos': 'true'})
+                        else:
+                            url = self.plugin.build_url({'action': 'showVideos', 'path': path, 'show_videos': 'true', 'section': label})
+                        if label is not None and label != '' and url:
+                            self.addDir(label, url)
         else:
-            for item in soup.find_all('div', class_=re_compile('^sdc-site-tile--has-link')):
-                link = item.find('a', {'class': 'sdc-site-tile__headline-link'})
-                label = link.span.string
-                url = self.plugin.build_url({'action': 'playVoD', 'path': link.get('href')})
-                icon = item.img.get('src')
-                self.addVideo(label, url, icon)
+            self.addVideos(soup, section)
+            load_more = soup.find('div', {'class': 'sdc-site-load-more'})
+            if load_more:
+                label = load_more.get('data-button-label')
+                path = json_loads(load_more.get('data-ajax-config')).get('url')
+                url = self.plugin.build_url({'action': 'showMoreVideos', 'path': path, 'page': 1, 'moreLabel': label})
+                self.addDir(label, url)
+
+        xbmcplugin.endOfDirectory(self.plugin.addon_handle, cacheToDisc=True)
+
+
+    def addVideos(self, soup, section):
+        if section:
+            soup = soup.find('section', {'title': section})
+        for item in soup.find_all('div', class_=re_compile('^sdc-site-tile--has-link')):
+            link = item.find('a', {'class': 'sdc-site-tile__headline-link'})
+            label = link.span.string
+            url = self.plugin.build_url({'action': 'playVoD', 'path': link.get('href')})
+            icon = item.img.get('src')
+            self.addVideo(label, url, icon)
+
+
+    def showMoreVideos(self, path, page, moreLabel):
+        page += 1
+        url = urllib_urljoin(self.base_url, path).replace('${page}', str(page))
+        res = requests_get(url)
+
+        if res.status_code == 200:
+            res_json = res.json()
+            items = res_json.get('items')
+            self.addVideos(BeautifulSoup(items, 'html.parser'), None)
+            if res_json.get('itemsReturned') == int(res_json.get('perPage')):
+                url = self.plugin.build_url({'action': 'showMoreVideos', 'path': path, 'page': page, 'moreLabel': moreLabel})
+                self.addDir(moreLabel, url)
 
         xbmcplugin.endOfDirectory(self.plugin.addon_handle, cacheToDisc=True)
 
@@ -161,7 +194,7 @@ class Content:
         if not video_config:
             scripts = soup.findAll('script')
             for script in scripts:
-                if hasattr(bs4Element, 'Script') and isinstance(script.string, bs4Element.Script):
+                if hasattr(bs4_element, 'Script') and isinstance(script.string, bs4_element.Script):
                     script = script.string
                 else:
                     script = script.text
@@ -203,14 +236,15 @@ class Content:
     def getVideoListItem(self, video_config):
         li = self.plugin.get_listitem()
 
-        if self.plugin.get_setting('user_token') and self.plugin.get_setting('token_exp') and datetime.fromtimestamp(int(self.plugin.get_setting('token_exp'))) < datetime.now():
-            self.login(True)
+        cookie_jar = self.credential.load_cookies()
+        at_cookies = [cookie for cookie in cookie_jar if cookie.name == 'accessToken']
+        rt_cookies = [cookie for cookie in cookie_jar if cookie.name == 'refreshToken']
+        if rt_cookies and (not at_cookies or (at_cookies and datetime.fromtimestamp(int(at_cookies[0].expires)) < datetime.now())):
+            self.refreshCookies(cookie_jar)
 
-        video_config = self.getToken(video_config)
-        if video_config.get('user_token_required') and not self.plugin.get_setting('user_token'):
+        video_config = self.getVideoToken(video_config, cookie_jar)
+        if video_config.get('user_token_required') and not at_cookies:
             self.plugin.dialog_notification('Login erforderlich')
-        elif self.plugin.get_setting('booked_packages') and video_config.get('package_name') and video_config.get('package_name') not in self.plugin.get_setting('booked_packages').split(','):
-            self.plugin.dialog_notification('Paket "{0}" erforderlich'.format(video_config.get('package_name')))
         elif not video_config.get('token'):
             self.plugin.dialog_notification('Auth-Token konnte nicht abgerufen werden')
         else:
@@ -232,33 +266,69 @@ class Content:
         return video.get('src')
 
 
-    def getToken(self, video_config):
+    def getVideoToken(self, video_config, cookie_jar):
         headers = video_config.get('auth_config').get('headers')
-        headers.update(dict(Authorization=b64decode(headers.get('Authorization'))))
-        data = dict(fileReference=video_config.get('id'), v='1', originatorHandle=video_config.get('originator_handle'))
-        if video_config.get('user_token_required'):
-            data.update(dict(userToken=self.plugin.get_setting('user_token')))
-        res = requests_post(video_config.get('auth_config').get('url'), headers=headers, data=data)
+        data = dict(fileReference=video_config.get('id'), v='2', originatorHandle=video_config.get('originator_handle'))
+        res = requests_post('{0}{1}'.format(self.base_url, video_config.get('auth_config').get('url')), headers=headers, cookies=cookie_jar, data=data)
         if res.status_code == 200:
             video_config.update(dict(token=res.text[1:-1]))
         return video_config
 
 
-    def login(self, silence=False):
-        data = self.credential.get_credentials()
-        res = requests_post('https://auth.sport.sky.de/login', data=dict(user=data.get('user'), pin=data.get('password')))
+    def refreshCookies(self, cookie_jar):
+        res = requests_get('{0}/getEntitlements'.format(self.base_url), cookies=cookie_jar)
         if res.status_code == 200:
-            self.credential.set_credentials(data.get('user'), data.get('password'))
-            user_token = res.text[1:-1]
-            self.plugin.set_setting('user_token', user_token)
-            self.plugin.set_setting('login_acc', data.get('user'))
-            token_payload = json_loads(self.plugin.b64dec(user_token.split('.')[1]))
-            self.plugin.set_setting('booked_packages', ','.join(token_payload.get('packages')))
-            self.plugin.set_setting('token_exp', str(token_payload.get('exp')))
-            if silence == False:
-                self.plugin.dialog_notification('Anmeldung erfolgreich')
-        else:
+            for cookie in res.cookies:
+                cookie_jar.set_cookie(cookie)
+            cookie_jar.save()
+
+
+    def login(self, silence=False):
+
+        _session = requests_session()
+        cookie_jar = self.credential.load_cookies()
+        _session.cookie = cookie_jar
+
+        res = _session.get('{0}/login'.format(self.base_url))
+        request_url = res.url
+
+        res = _session.get(request_url)
+        request_url = res.url
+
+        csrf = None
+        match = re_search('<input.*?name="_csrf"\s+?value="(.*?)"', res.text)
+        if match:
+            csrf = match.group(1)
+
+        js_url = None
+        match = re_search('\s<script\s+?type="text\/javascript"\s+src="(.*?)"><\/script>', res.text)
+        if match:
+            js_url = match.group(1)
+
+        # TO-DO: determine sensor_data
+        sensor_data = ''
+        res = _session.post('https://id.sport.sky.de{0}'.format(js_url), data=sensor_data)
+        request_url = res.url
+
+        user_data = self.credential.get_credentials()
+        signin_data = dict(username=user_data.get('user'), password=user_data.get('password'), _csrf=csrf, sessCounter=_session.cookies.get_dict().get('sessionCounter'))
+        res = _session.post('https://id.sport.sky.de/site/signin', data=signin_data, allow_redirects=False)
+        request_url = res.headers.get('location')
+        if res.status_code != 302:
+            self.plugin.log('res text = {0}'.format(res.text))
             self.plugin.dialog_notification('Anmeldung nicht erfolgreich')
+        else:
+            res = _session.get(request_url)
+            request_url = res.url
+
+            for cookie in _session.cookies:
+                cookie_jar.set_cookie(cookie)
+            cookie_jar.save()
+
+            if silence == False:
+                if self.credential.has_credentials == False:
+                    self.credential.set_credentials(user_data.get('user'), user_data.get('password'))
+                self.plugin.dialog_notification('Anmeldung erfolgreich')
 
 
     def logout(self):

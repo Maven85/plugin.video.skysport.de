@@ -31,6 +31,7 @@ class Common:
         self.addon_id = self.addon.getAddonInfo('id')
         self.addon_name = self.addon.getAddonInfo('name')
         self.addon_path = self.addon.getAddonInfo('path')
+        self.addon_profile = self.addon.getAddonInfo('profile')
         self.kodi_version = int(xbmc.getInfoLabel('System.BuildVersion').split('.')[0])
 
         self.cache = StorageServer.StorageServer(py2_encode('{0}.videoid').format(self.addon_name), 24 * 30)
